@@ -8,9 +8,9 @@ import formatters.humanReadable._
 import scala.collection.AbstractIterator
 import scala.collection.Iterator
 
-object BulkReseauTel extends App{
-  
-    def uniqueBy[T, U](it: Iterator[T])(pred: T => U) = new AbstractIterator[T] {
+object BulkReseauTel extends App {
+
+  def uniqueBy[T, U](it: Iterator[T])(pred: T => U) = new AbstractIterator[T] {
 
     var seen = Set.empty[U]
     var n = if (it.hasNext) Some(it.next()) else None
@@ -27,7 +27,7 @@ object BulkReseauTel extends App{
       res
     }
   }
-  
+
   /**
    * Settings
    */
@@ -48,13 +48,6 @@ object BulkReseauTel extends App{
 
   // filters
   val departements = List(59)
-
-  case class Geo(latitude: Double, longitude: Double)
-  case class Operateur(nom_operateur:String, couverture:Double, reseau:String, type_couverture:String)
-  case class SingleRecord(code_postal:Int, code_INSEE:Int, nom_commune:String, code_dpt:Int, surface_km2:Float, population:Int, posGeo:Geo, operateurs:List[Operateur])
-  case class Commune(code_postal:Int, code_INSEE:Int, nom_commune:String, code_dpt:Int, surface_km2:Float, population:Int, posGeo:Geo)
-  case class Data(code_postal:Int, code_INSEE:Int, nom_commune:String, code_dpt:Int, surface_km2:Float, population:Int, posGeo:Geo, couverture:Double, operateur:String, type_couverture:String, reseau:String)
-  case class Spot(code_INSEE:Int, operateurs:List[Operateur])
 
   val lineRegexp = """(\d+);(\d+);([\s\w&-]+);(\d+);(\d+\.\d+);(\d+\.\d+);([\s]?[-]?\d+\.\d+),([\s]?[-]?\d+\.\d+);([\s\w\p{L}]+);(\d+\.\d+);([\s\w\p{L}]+);([\s\w]+);([\s\w]+);(\w+)""".r
 
@@ -80,7 +73,6 @@ object BulkReseauTel extends App{
   val numberOfLines = it1.size
   println(f"# lines = ${numberOfLines}")
 
-
   /**
    * Count distinct cities
    */
@@ -98,36 +90,46 @@ object BulkReseauTel extends App{
 
   var breakINSEE = -1
   var n = 0
-  var listOperators:List[Operateur] = Nil
-  
+  var listOperators: List[Operateur] = Nil
+
   while (it2.hasNext) {
     val elem = it2.next()
     val operator = Operateur(elem.operateur, elem.couverture, elem.reseau, elem.type_couverture)
-    
+
     // accumulate operators
     listOperators = operator :: listOperators
-    
+
     if (elem.code_INSEE != breakINSEE) {
       n = n + 1
-      
+
       // write records except at the beginning
-      if ( n != 1) {
+      if (n != 1) {
         // dump data into files
         val sep = if (n == nbCommunes) "\r\n" else ",\r\n"
         val city = Commune(elem.code_postal, elem.code_INSEE, elem.nom_commune, elem.code_dpt, elem.surface_km2, elem.population, elem.posGeo)
-        val singleRecord = SingleRecord(elem.code_postal, elem.code_INSEE, elem.nom_commune, elem.code_dpt, elem.surface_km2, elem.population, elem.posGeo, operateurs=listOperators)
-        val spot = Spot(elem.code_INSEE, operateurs=listOperators)
-        
+        val singleRecord = SingleRecord(elem.code_postal, elem.code_INSEE, elem.nom_commune, elem.code_dpt, elem.surface_km2, elem.population, elem.posGeo, operateurs = listOperators)
+        val spot = Spot(elem.code_INSEE, operateurs = listOperators)
+
         val strData = List(Json(singleRecord).toString + sep, Json(city).toString + sep, Json(spot).toString + sep)
-        (bwNames zip strData).map{ case (bwName, str) => bwName.write(str) }
+        (bwNames zip strData).map { case (bwName, str) => bwName.write(str) }
 
         listOperators = List()
-        breakINSEE = elem.code_INSEE 
+        breakINSEE = elem.code_INSEE
       }
     }
   }
 
   bwNames.map(_.write("]\r\n)"))
   bwNames.map(_.close())
-  
+
 } // end object
+
+case class Geo(latitude: Double, longitude: Double)
+case class Operateur(nom_operateur: String, couverture: Double, reseau: String, type_couverture: String)
+case class SingleRecord(code_postal: Int, code_INSEE: Int, nom_commune: String, code_dpt: Int, surface_km2: Float, population: Int, posGeo: Geo, operateurs: List[Operateur])
+case class Commune(code_postal: Int, code_INSEE: Int, nom_commune: String, code_dpt: Int, surface_km2: Float, population: Int, posGeo: Geo)
+case class Data(code_postal: Int, code_INSEE: Int, nom_commune: String, code_dpt: Int, surface_km2: Float, population: Int, posGeo: Geo, couverture: Double, operateur: String, type_couverture: String, reseau: String) {
+  def op = Operateur(operateur, couverture, reseau, type_couverture)
+}
+case class Spot(code_INSEE: Int, operateurs: List[Operateur])
+
